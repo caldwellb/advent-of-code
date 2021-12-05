@@ -5,11 +5,12 @@ import qualified Text.Parsec as P
 import Control.Monad.Identity
 import Data.Foldable
 import Data.Array.IO
+import Data.List
 
 {- Basic construction of a line, checking for straightness, unfolding a straight line -}
 
 data Line = L2 (Int, Int) (Int, Int)
-    deriving (Show, Eq)
+    deriving Show
 
 type Lines = [Line]
 
@@ -28,22 +29,13 @@ unfoldStraightLine (L2 (x1,y1) (x2,y2))
     | y1 == y2  = [ (xs, y1) | xs <- [(min x1 x2) .. (max x1 x2)] ]
     | otherwise = error "Non straight line handed to unfoldStraightLine"
 
-
-
 unfoldDiagonalLine :: Line -> [(Int,Int)]
-unfoldDiagonalLine (L2 (x1,y1) (x2,y2)) =let
-    minX = min x1 x2
-    maxX = max x1 x2
-    minY = min y1 y2
-    maxY = max y1 y2 in
-        doUnfold (minX, minY) maxX
-        where
-            doUnfold :: (Int, Int) -> Int -> [(Int,Int)]
-            doUnfold (x, y) maxX
-                | x == maxX  = [(x,y)]
-                | otherwise = (x,y) : doUnfold (x + 1, y + 1) maxX
-                
-
+unfoldDiagonalLine (L2 (x1,y1) (x2,y2))
+    | x1 == x2 && y1 == y2 = [(x1,y1)]
+    | x1 < x2  && y1 < y2  = (x1,y1) : unfoldDiagonalLine (L2 (x1+1,y1+1) (x2,y2))
+    | x1 > x2  && y1 < y2  = (x1,y1) : unfoldDiagonalLine (L2 (x1-1,y1+1) (x2,y2))
+    | x1 < x2  && y1 > y2  = (x1,y1) : unfoldDiagonalLine (L2 (x1+1,y1-1) (x2,y2))
+    | otherwise            = (x1,y1) : unfoldDiagonalLine (L2 (x1-1,y1-1) (x2,y2))
 
 {- Parsing lines to input -}
 
@@ -99,7 +91,7 @@ main = do
 test:: IO ()
 test = do
     grid   <- newArray ((0,0),(9,9)) 0 :: IO (IOArray (Int,Int) Int)
-    inputs <- getInputLines
+    inputs <- getTestInputs
     let straightInputs = onlyStraight inputs
     for_ straightInputs $ \line -> do
         let points = unfoldStraightLine line
@@ -109,8 +101,9 @@ test = do
     elems1 <- getElems grid
     putStr "Solution 1: " >> print (length . filter (> 1) $ elems1)
     let diagonalInputs = notStraight inputs
-    for_ diagonalInputs $ \line -> do
+    for_ (zip [1..] diagonalInputs) $ \(idx, line) -> do
         let points = unfoldDiagonalLine line
+        putStr ("Diagonal line #" ++ show idx ++ " " ++ show line ++ " ") >> print points
         for_ points $ \point -> do
             currentVal <- readArray grid point
             writeArray grid point (currentVal + 1)

@@ -23,7 +23,10 @@ checkBurst grid coord = do
         if val > 9 then burst grid coord else return []
 
 burst :: SquidGrid -> Coordinate -> IO [Coordinate]
-burst grid coord = (writeArray grid coord 0 >> forM_ (neighbors coord) (addOne grid) >> forM (neighbors coord) (checkBurst grid)) <&> (coord :) . concat
+burst grid coord = 
+    (writeArray grid coord 0 >>
+    forM_ (neighbors coord) (addOne grid)  >>
+    forM (neighbors coord) (checkBurst grid) <* writeArray grid coord 0) <&> (coord :) . concat
 
 step :: [Coordinate] -> SquidGrid -> IO Int
 step coords grid = forM_ coords (addOne grid) >> length . concat <$> forM coords (checkBurst grid)
@@ -55,7 +58,7 @@ runSim2 = do
     let columns = length $ head input
     let rows    = length input
     let staticArray = listArray ((0, 0), (columns - 1, rows - 1)) (concat input)
-    grid <- thaw staticArray :: IO SquidGrid
+    grid <- thaw staticArray
     numberOfRuns <- length <$> untilM (step (indices staticArray) grid) (gridSync grid)
     showSquidGrid grid
     putStr "Solution 2: " >> print numberOfRuns

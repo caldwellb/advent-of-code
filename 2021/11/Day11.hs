@@ -15,7 +15,7 @@ neighbors :: Coordinate -> [Coordinate]
 neighbors (x,y) = filter (inRange ( (0, 0), (9, 9) )) [(x-1, y), (x+1, y), (x, y-1), (x, y+1), (x-1, y-1), (x+1, y-1), (x-1, y+1), (x+1, y+1)]
 
 addOne :: SquidGrid -> Coordinate -> IO ()
-addOne grid coord = freeze grid >>= writeArray grid coord . (1 +) . (! coord)
+addOne grid coord = readArray grid coord >>= writeArray grid coord . (1 +)
 
 checkBurst :: SquidGrid -> Coordinate -> IO [Coordinate]
 checkBurst grid coord = do
@@ -36,10 +36,10 @@ showGridElem 0 = "\x1B[31m0\x1B[0m"
 showGridElem x = show x
 
 showSquidGrid :: SquidGrid -> IO ()
-showSquidGrid grid = freeze grid >>= putStrLn . unlines . map (unwords . map showGridElem) . chunksOf 10 . elems
+showSquidGrid grid = freeze grid >>= putStr . unlines . map (unwords . map showGridElem) . chunksOf 10 . elems
 
-gridSync :: SquidGrid -> IO Bool
-gridSync grid = freeze grid <&> all (== 0) . elems
+gridSync :: [Coordinate] -> SquidGrid -> IO Bool
+gridSync coords grid = all (==0) <$> mapM (readArray grid) coords
 
 runSim1For :: Int -> IO ()
 runSim1For x = do
@@ -59,9 +59,9 @@ runSim2 = do
     let rows    = length input
     let staticArray = listArray ((0, 0), (columns - 1, rows - 1)) (concat input)
     grid <- thaw staticArray
-    numberOfRuns <- length <$> untilM (step (indices staticArray) grid) (gridSync grid)
+    numberOfRuns <- length <$> untilM (step (indices staticArray) grid) (gridSync (indices staticArray) grid)
     showSquidGrid grid
     putStr "Solution 2: " >> print numberOfRuns
 
 main :: IO ()
-main = runSim1For 100 >> runSim2
+main = runSim1For 100 >> putStrLn "" >> runSim2

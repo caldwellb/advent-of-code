@@ -5,6 +5,7 @@ import Data.List.Split
 type PolymerChain     = String
 type Polymer          = Char
 type InsertionRules   = M.Map (Polymer, Polymer) Polymer
+type PairOccurences   = M.Map (Polymer, Polymer) Int
 type Occurences       = M.Map Polymer Int
 type Depth            = Int
 
@@ -17,28 +18,41 @@ parseInput = ((,) <$> head <*> M.fromList . map parseLine . drop 2) . lines
 possiblePolymers :: [Polymer]
 possiblePolymers = ['B', 'C', 'F', 'H', 'K', 'N', 'O', 'P', 'S', 'V']
 
-emptyOccurences :: Occurences
-emptyOccurences = M.fromList (zip possiblePolymers [0, 0..])
+
+polymerPairs :: [(Polymer, Polymer)]
+polymerPairs = [ (a, b) | a <- possiblePolymers, b <- possiblePolymers ]
+
+emptyOccurences :: PairOccurences
+emptyOccurences = M.fromList (zip polymerPairs [0, 0..])
+
+spotPolymers :: (Polymer, Polymer) -> PairOccurences -> PairOccurences
+spotPolymers = flip (M.insertWith (+)) 1
 
 spotPolymer :: Polymer -> Occurences -> Occurences
 spotPolymer = flip (M.insertWith (+)) 1
 
-chainStep :: Depth -> InsertionRules -> (Polymer, Polymer) -> Occurences
-chainStep 0  rules (x, y) = emptyOccurences
-chainStep sn rules (x, y) = spotPolymer (rules M.! (x,y)) (M.unionWith (+) (chainStep (sn - 1) rules (x, rules M.! (x,y))) (chainStep (sn - 1) rules (rules M.! (x,y), y)))
+splitPolymerVal :: ((Polymer,Polymer), Int) -> InsertionRules -> PairOccurences
+splitPolymerVal ((x, y), val) rules = let newPolymer = rules M.! (x, y) in M.fromList [((x, newPolymer), val), ((newPolymer, y), val)]
 
-scoreTemplate :: Occurences -> PolymerChain -> Occurences
-scoreTemplate = foldr spotPolymer
+chainStep :: InsertionRules -> PairOccurences -> PairOccurences 
+chainStep rules = M.unionsWith (+) . map (`splitPolymerVal` rules) . M.toAscList 
+
+countPolymers :: PairOccurences -> Polymer -> Polymer -> Occurences
+countPolymers occ p1 p2 = M.map (`div` 2) . spotPolymer p1 . spotPolymer p2 . M.fromListWith (+) . foldr (\((x, y), val) acc -> (x, val) : (y, val) : acc) [] . M.toAscList $ occ
 
 main :: IO ()
 main = do
     (template, rules) <- parseInput <$> readFile "input"
-    let first10 = (`scoreTemplate` template) . M.unionsWith (+) $ zipWith (curry (chainStep 10 rules)) template (tail template)
-    let max10 = maximum first10
-    let min10 = minimum first10
-    putStr "Solution 1: " >> print (max10 - min10)
-    let then40 = (`scoreTemplate` template) . M.unionsWith (+) $ zipWith (curry (chainStep 40 rules)) template (tail template)
-    let max40 = maximum then40
-    let min40 = minimum then40
-    putStr "Solution 2: " >> print (max40 - min40)
-    return ()
+    let undercount1        = head template
+        undercount2        = last template 
+        templateOccurences = foldr spotPolymers emptyOccurences (zip template $ tail template)
+        tenRuns            = iterate (chainStep rules) templateOccurences !! 10
+        solution1          = countPolymers tenRuns undercount1 undercount2
+        max1               = maximum solution1
+        min1               = minimum solution1
+    putStr "Solution 1: " >> print (max1 - min1)
+    let fortyRuns          = iterate (chainStep rules) tenRuns !! 30
+        solution2          = countPolymers fortyRuns undercount1 undercount2
+        max2               = maximum solution2
+        min2               = minimum solution2
+    putStr "Solution 2: " >> print (max2 - min2)

@@ -46,7 +46,7 @@ step paths riskarray = let
     else let
         stepOn = S.map (\nbrcrd -> (rsk + riskarray ! nbrcrd, nbrcrd)) (S.fromList $ neighbors maxBound crd)
         in step (S.union stepOn rest) riskarray
-=
+
 displayGrid :: Show e  => Array (Int, Int) e -> IO ()
 displayGrid arr = let
     columns = snd . snd . bounds $ arr
@@ -65,4 +65,5 @@ main = do
     putStrLn "Solving 2..." 
     let solspace2  = step (S.singleton (0,(0,0))) inputLarge
     putStr "Solution 2: " >> print solspace2
-    return ()
+    putStrLn "Test"
+    return () 
